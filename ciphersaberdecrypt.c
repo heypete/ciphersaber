@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+void decryptText();
 void initializeSBox();
 int getIV();
-unsigned char genRandomByte();
 
 main(int argc, char **argv)
 {
@@ -20,7 +20,7 @@ unsigned char S[256]; //S-box
 unsigned char key[keyLength];
 unsigned char iv[10];
 
-// Copy key into key buffer..
+// Copy key into key buffer.
 if(strlen(argv[1]) == 0 ){
 printf("Usage: ./ciphersaber [key] [message]\n");
 printf("You must enter a key.\n");
@@ -29,9 +29,9 @@ exit(0);
 strncpy(key, argv[1], keyLength);
 
 //Read IV from file.
-getIV(iv, 2);
+getIV(iv);
 
-// Ciphersaber key is (suer supplied key)+(IV).
+// Ciphersaber key is (user supplied key)+(IV).
 // Create a new array that concatenates the IV to the key.
 unsigned char keyIV[keyLength+10];
 for(i=0; i<keyLength; i++){
@@ -39,16 +39,20 @@ keyIV[i]=key[i];
 }
 for(i=keyLength; i<(keyLength+10); i++){
 keyIV[i]=iv[i-keyLength];
-
 }
 
 //initialize S-Box
-initializeSBox( S, key, strlen(keyIV) );
+initializeSBox( S, keyIV, strlen(keyIV) );
 
+decryptText( S );
+
+}
+
+void decryptText(unsigned char sBox[] ){
 // Load message file.
-FILE *f = fopen("textfile.txt", "r");
-i=0;
+FILE *f = fopen("textfile.txt", "rb");
 unsigned int input=0;
+unsigned int i=0;
 unsigned int j=0;
 unsigned int temp=0;
 unsigned int t=0;
@@ -57,23 +61,31 @@ fseek(f, 10, SEEK_SET); //The IV is the first 10 bytes. Skip past this and start
 
 // Decrypt file.
 while ((input = fgetc(f)) !=EOF ) {
-i=(i+1)%256;
-j=(j+S[i])%256;
-temp=S[i];
-S[i]=S[j];
-S[j]=temp;
-t=(S[i]+S[j])%256;
-K=S[t];
-printf( "%c", (K^input)); //Print decrypted message.
+        i=(i+1)%256;
+        j=(j+sBox[i])%256;
+
+        //Swap S[i] and S[j].
+        temp=sBox[i];
+        sBox[i]=sBox[j];
+        sBox[j]=temp;
+
+        t=(sBox[i]+sBox[j])%256;
+        K=sBox[t];
+
+        printf( "%c", (K^input)); //Print decrypted message.
 }
 
 fclose(f);
+
+return;
 }
 
 void initializeSBox( unsigned char sBox[], unsigned char key[] , unsigned int keyLength ){
 	unsigned int i=0;
 	unsigned int j=0;
 	unsigned int temp=0;
+
+	//Fill S-box with 0, 1, 2, ..., 253, 254, 255.
 	for(i=0; i<256; i++){
 	sBox[i]=i;
 	}
@@ -87,12 +99,11 @@ void initializeSBox( unsigned char sBox[], unsigned char key[] , unsigned int ke
 return;
 }
 
-int getIV(char input[], int encrypt){
-	char data[10];
-	FILE* fp;
+int getIV(unsigned char input[]){
+	FILE *f;
 	//Read 10 byte IV from file.
-	fp = fopen("textfile.txt", "r");
-	fread(input, 1, 10, fp);
-	fclose(fp);
+	f = fopen("textfile.txt", "rb");
+	fread(input, 1, 10, f);
+	fclose(f);
 return;
 }
